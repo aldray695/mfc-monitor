@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MFC Monitoring System - Universitas Andalas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        /* ============================================================
+                   ROOT VARIABLES - LIGHT THEME (PUTIH & HIJAU)
+                   ============================================================ */
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --bg-sidebar: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+            --unand-green: #1a8a3f;
+            --unand-green-light: #2ecc71;
+            --unand-green-bg: #ecfdf5;
+            --unand-gold: #c9a84c;
+            --unand-gold-light: #f1c40f;
+            --unand-red: #c0392b;
+
+            --ch1: #3b82f6;
+            --ch2: #10b981;
+            --ch3: #8b5cf6;
+            --ch4: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--unand-green); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--unand-green-light); }
+
+        /* ============================================================
+                   LAYAR LOGIN
+                   ============================================================ */
+        #loginScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-primary); z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .login-box {
+            background: var(--bg-secondary); padding: 40px; border-radius: var(--radius);
+            border: 1px solid var(--border-color); width: 100%; max-width: 400px;
+            box-shadow: var(--shadow-hover); text-align: center;
+        }
+
+        /* ============================================================
+                   BACKGROUND & SIDEBAR
+                   ============================================================ */
+        .bg-glow {
+            position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(26, 138, 63, 0.03) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 80%, rgba(201, 168, 76, 0.03) 0%, transparent 60%);
+            pointer-events: none; z-index: 0; animation: bgPulse 20s ease-in-out infinite alternate;
+        }
+        @keyframes bgPulse { 0% { transform: scale(1) rotate(0deg); } 100% { transform: scale(1.1) rotate(5deg); } }
+
+        .sidebar {
+            width: 280px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0;
+            z-index: 100; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.02);
+        }
+
+        .sidebar-brand { padding: 24px 20px 16px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 14px; }
+        .brand-logo { width: 54px; height: 54px; background: linear-gradient(135deg, var(--unand-green), var(--unand-green-light)); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; color: #fff; box-shadow: 0 4px 16px rgba(26, 138, 63, 0.35); }
+        .brand-title { font-size: 18px; font-weight: 800; color: var(--unand-green); }
+        .brand-unand { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+        .unand-badge { background: var(--unand-green); padding: 1px 10px; border-radius: 4px; font-size: 8px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+        .faculty-badge { background: rgba(201, 168, 76, 0.15); border: 1px solid rgba(201, 168, 76, 0.3); padding: 1px 8px; border-radius: 4px; font-size: 7px; font-weight: 600; color: var(--unand-gold); }
+
+        .sidebar-nav { flex: 1; padding: 16px 14px; display: flex; flex-direction: column; gap: 2px; }
+        .nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); padding: 12px 12px 6px; font-weight: 700; }
+        .nav-item { display: flex; align-items: center; gap: 14px; padding: 11px 14px; border-radius: var(--radius-sm); color: var(--text-secondary); text-decoration: none; transition: var(--transition); cursor: pointer; border: none; background: none; width: 100%; text-align: left; font-size: 14px; font-family: inherit; position: relative; }
+        .nav-item:hover { background: var(--bg-card-hover); color: var(--unand-green); }
+        .nav-item.active { background: var(--unand-green-bg); color: var(--unand-green); font-weight: 600; }
+        .nav-item.active::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: var(--unand-green); border-radius: 0 4px 4px 0; }
+        .nav-badge { margin-left: auto; background: var(--unand-green-bg); color: var(--unand-green); font-size: 10px; padding: 2px 10px; border-radius: 12px; font-weight: 600; }
+
+        .sidebar-footer { padding: 14px 18px; border-top: 1px solid var(--border-color); }
+        .device-status { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg-primary); border-radius: var(--radius-sm); margin-bottom: 10px; border: 1px solid var(--border-color); }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; animation: pulse-dot 2s infinite; }
+        .status-dot.online { background: var(--unand-green-light); box-shadow: 0 0 8px rgba(46, 204, 113, 0.4); }
+        .status-dot.offline { background: var(--unand-red); box-shadow: 0 0 8px rgba(192, 57, 43, 0.4); }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+        .status-text { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+        .user-info { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 4px 12px; background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--unand-green), var(--unand-green-light)); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; }
+        .user-name { font-size: 14px; font-weight: 500; }
+        .btn-logout { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: var(--transition); font-size: 14px; font-family: inherit; }
+        .btn-logout:hover { background: rgba(239, 68, 68, 0.1); color: var(--unand-red); }
+
+        /* ============================================================
+                   MAIN CONTENT & TOPBAR
+                   ============================================================ */
+        .main-content { margin-left: 280px; flex: 1; padding: 24px 32px 32px; min-height: 100vh; position: relative; z-index: 1; }
+        .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; background: var(--bg-secondary); padding: 14px 24px; border-radius: var(--radius); border: 1px solid var(--border-color); box-shadow: var(--shadow); }
+        .topbar-left { display: flex; align-items: center; gap: 16px; }
+        .btn-hamburger { display: none; background: none; border: none; color: var(--text-primary); font-size: 22px; cursor: pointer; padding: 4px; }
+        .page-title { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+        .page-title-sub { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+        .topbar-right { display: flex; align-items: center; gap: 12px; }
+        .datetime { color: var(--text-secondary); font-size: 13px; font-weight: 500; padding: 6px 14px; background: var(--bg-primary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .btn-refresh { background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); width: 38px; height: 38px; border-radius: 50%; cursor: pointer; font-size: 16px; transition: var(--transition); display: flex; align-items: center; justify-content: center; }
+        .btn-refresh:hover { background: var(--unand-green-bg); color: var(--unand-green); border-color: var(--unand-green); transform: rotate(180deg); }
+
+        /* ============================================================
+                   PAGE SECTIONS
+                   ============================================================ */
+        .page-section { display: none; animation: fadeSlideIn 0.5s ease; }
+        .page-section.active { display: block; }
+        @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ============================================================
+                   STATS GRID
+                   ============================================================ */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: var(--bg-secondary); border-radius: var(--radius); padding: 20px 24px; display: flex; align-items: center; gap: 16px; border: 1px solid var(--border-color); transition: var(--transition); box-shadow: var(--shadow); }
+        .stat-card:hover { border-color: var(--unand-green); transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+        .stat-icon { width: 48px; height: 48px; border-radius: 12px; background: var(--unand-green-bg); color: var(--unand-green); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .stat-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+        .stat-value { font-size: 28px; font-weight: 800; line-height: 1.2; color: var(--text-primary); }
+        .stat-sub { font-size: 12px; color: var(--text-muted); }
+        .status-online { color: var(--unand-green) !important; }
+
+        /* ============================================================
+                   CHART SECTION
+                   ============================================================ */
+        .charts-grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+        .chart-section { background: var(--bg-secondary); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow); }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px; }
+        .chart-header h3 { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
+        .chart-header h3 .accent { color: var(--unand-green); }
+        .chart-container { position: relative; height: 220px; }
+
+        /* ============================================================
+                   CHANNELS GRID
+                   ============================================================ */
+        .channels-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .channel-card { background: var(--bg-secondary); border-radius: var(--radius); padding: 16px 18px; border: 1px solid var(--border-color); transition: var(--transition); position: relative; overflow: hidden; box-shadow: var(--shadow); }
+        .channel-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--unand-green), var(--unand-green-light)); opacity: 0; transition: var(--transition); }
+        .channel-card:hover::before { opacity: 1; }
+        .channel-card:hover { border-color: var(--unand-green); transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+        .channel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .channel-number { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+        .status-badge { font-size: 11px; padding: 2px 10px; border-radius: 12px; font-weight: 600; }
+        .status-badge.ok { background: var(--unand-green-bg); color: var(--unand-green); }
+        .status-badge.warning { background: #fffbeb; color: #d97706; }
+        .status-badge.error { background: #fef2f2; color: var(--unand-red); }
+        .channel-body { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+        .value-box { text-align: center; padding: 4px 0; }
+        .value-box .label { display: block; font-size: 9px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .value-box .value { font-size: 15px; font-weight: 800; color: var(--text-primary); }
+        .value-box .unit { font-size: 10px; color: var(--text-secondary); }
+        .channel-footer { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); }
+        .btn-detail { background: none; border: none; color: var(--unand-green); cursor: pointer; font-size: 11px; font-family: inherit; font-weight: 600; transition: var(--transition); }
+        .btn-detail:hover { color: var(--unand-green-light); text-decoration: underline; }
+
+        /* ============================================================
+                   LOG SECTION
+                   ============================================================ */
+        .log-section { background: var(--bg-secondary); border-radius: var(--radius); padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow); }
+        .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .log-header h3 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
+        .btn-view-all { background: none; border: none; color: var(--unand-green); cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; transition: var(--transition); }
+        .btn-view-all:hover { color: var(--unand-green-light); text-decoration: underline; }
+        .log-container { max-height: 200px; overflow-y: auto; }
+        .log-item { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: var(--text-secondary); font-weight: 500; min-width: 60px; font-size: 13px; }
+        .log-message { color: var(--text-primary); }
+
+        /* ============================================================
+                   FILTER SECTION (Historical)
+                   ============================================================ */
+        .filter-section { margin-bottom: 24px; }
+        .filter-card { background: var(--bg-secondary); border-radius: var(--radius); padding: 20px 24px; border: 1px solid var(--border-color); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; box-shadow: var(--shadow); }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 150px; }
+        .filter-group label { font-size: 12px; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        .filter-group select, .filter-group input { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; color: var(--text-primary); font-size: 14px; font-family: inherit; outline: none; transition: var(--transition); }
+        .filter-group select:focus, .filter-group input:focus { border-color: var(--unand-green); box-shadow: 0 0 0 3px rgba(26, 138, 63, 0.1); }
+        .filter-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* ============================================================
+                   BUTTONS
+                   ============================================================ */
+        .btn-primary { background: var(--unand-green); border: none; color: #fff; padding: 8px 22px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: var(--transition); font-family: inherit; }
+        .btn-primary:hover { background: var(--unand-green-light); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(26, 138, 63, 0.2); }
+        .btn-secondary { background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 22px; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; transition: var(--transition); font-family: inherit; }
+        .btn-secondary:hover { background: var(--bg-card-hover); }
+        .btn-secondary.active { background: var(--unand-green-bg); border-color: var(--unand-green); color: var(--unand-green); }
+        .btn-download { background: var(--unand-gold); border: none; color: #fff; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: var(--transition); font-family: inherit; }
+        .btn-download:hover { background: var(--unand-gold-light); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(201, 168, 76, 0.2); }
+        .btn-danger { background: var(--unand-red); border: none; color: #fff; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: var(--transition); font-family: inherit; }
+        .btn-danger:hover { background: #e74c3c; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(192, 57, 43, 0.2); }
+
+        /* ============================================================
+                   TABLE
+                   ============================================================ */
+        .table-section { background: var(--bg-secondary); border-radius: var(--radius); padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow); }
+        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .table-header h3 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
+        .table-controls { display: flex; gap: 8px; }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        table thead { background: var(--bg-primary); }
+        table th { padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
+        table td { padding: 10px 14px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+        table tbody tr:hover { background: var(--bg-card-hover); }
+        .table-pagination { display: flex; align-items: center; gap: 16px; margin-top: 16px; justify-content: center; flex-wrap: wrap; }
+        .btn-pagination { background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 12px; border-radius: 6px; cursor: pointer; transition: var(--transition); font-family: inherit; }
+        .btn-pagination:hover { background: var(--bg-card-hover); }
+        .table-pagination select { background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 8px; border-radius: 6px; font-family: inherit; }
+
+        /* ============================================================
+                   SETTINGS
+                   ============================================================ */
+        .settings-section { display: flex; flex-direction: column; gap: 24px; }
+        .settings-card { background: var(--bg-secondary); border-radius: var(--radius); padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow); }
+        .settings-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
+        .settings-card.danger { border-color: rgba(192, 57, 43, 0.3); }
+        .settings-card.danger h3 { color: var(--unand-red); }
+        .settings-group { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+        .settings-group label { min-width: 140px; font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+        .input-group { display: flex; align-items: center; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+        .input-group input { background: none; border: none; padding: 8px 14px; color: var(--text-primary); font-size: 14px; font-family: inherit; outline: none; min-width: 80px; }
+        .input-group input:focus { outline: 2px solid var(--unand-green); }
+        .input-group.full { flex: 1; }
+        .input-group.full input { width: 100%; }
+        .input-suffix { padding: 8px 14px; color: var(--text-secondary); font-size: 13px; background: var(--bg-primary); border-left: 1px solid var(--border-color); }
+
+        .threshold-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .threshold-table th { background: var(--bg-primary); padding: 8px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .threshold-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-color); }
+        .threshold-table input { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 4px 8px; color: var(--text-primary); width: 80px; font-family: inherit; }
+        .threshold-table input:focus { outline: 2px solid var(--unand-green); }
+        .btn-edit { background: var(--unand-green); border: none; color: #fff; padding: 2px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; transition: var(--transition); }
+        .btn-edit:hover { background: var(--unand-green-light); }
+        .btn-delete { background: var(--unand-red); border: none; color: #fff; padding: 2px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; transition: var(--transition); }
+        .btn-delete:hover { background: #e74c3c; }
+
+        .device-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .device-info-item { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; background: var(--bg-primary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .info-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+        .info-value { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+        .danger-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+        /* ============================================================
+                   TOAST NOTIFICATIONS
+                   ============================================================ */
+        .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; max-width: 380px; width: 100%; }
+        .toast { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 14px 20px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-hover); animation: slideUp 0.3s ease; border-left: 4px solid var(--unand-green); }
+        .toast.error { border-left-color: var(--unand-red); }
+        .toast.warning { border-left-color: var(--unand-gold); }
+        .toast-icon { font-size: 20px; }
+        .toast-message { flex: 1; font-size: 14px; font-weight: 500; color: var(--text-primary); }
+        .toast-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px; font-family: inherit; transition: var(--transition); }
+        .toast-close:hover { color: var(--text-primary); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ============================================================
+                   RESPONSIVE
+                   ============================================================ */
+        @media (max-width: 1200px) {
+            .channels-grid { grid-template-columns: repeat(2, 1fr); }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .device-info-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid-container { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; padding: 16px; }
+            .btn-hamburger { display: block; }
+            .channels-grid { grid-template-columns: 1fr 1fr; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .filter-card { flex-direction: column; align-items: stretch; }
+            .filter-actions { justify-content: flex-end; }
+            .device-info-grid { grid-template-columns: 1fr; }
+            .settings-group { flex-direction: column; align-items: stretch; }
+            .settings-group label { min-width: unset; }
+            .chart-container { height: 200px; }
+            .topbar { flex-direction: row; flex-wrap: wrap; padding: 12px 16px; }
+            .page-title { font-size: 18px; }
+            .brand-unand .faculty-badge { display: none; }
+        }
+        @media (max-width: 480px) {
+            .channels-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .stat-card { padding: 14px 18px; }
+            .channel-body { grid-template-columns: 1fr 1fr; }
+            .main-content { padding: 12px; }
+            .topbar { padding: 10px 14px; }
+            .datetime { font-size: 11px; padding: 4px 10px; }
+        }
+
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 99; }
+        .sidebar-overlay.active { display: block; }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================
+    LAYAR LOGIN (FRONTEND)
+    ============================================================ -->
+    <div id="loginScreen">
+        <div class="login-box">
+            <div style="margin-bottom: 20px;">
+                <div style="width: 60px; height: 60px; background: linear-gradient(135deg, var(--unand-green), var(--unand-green-light)); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; color: #fff; margin: 0 auto 10px;">
+                    ⚡
+                </div>
+                <h2 style="color: var(--text-primary); font-size: 20px;">MFC Monitoring</h2>
+                <p style="color: var(--text-secondary); font-size: 12px;">Universitas Andalas - Teknik Elektro</p>
+            </div>
+
+            <div style="text-align: left; margin-bottom: 15px;">
+                <label style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Username</label>
+                <input type="text" id="loginUsername" placeholder="Masukkan username" style="width: 100%; padding: 10px 14px; margin-top: 5px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); outline: none; font-family: inherit;">
+            </div>
+
+            <div style="text-align: left; margin-bottom: 25px;">
+                <label style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Password</label>
+                <input type="password" id="loginPassword" placeholder="Masukkan password" style="width: 100%; padding: 10px 14px; margin-top: 5px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); outline: none; font-family: inherit;">
+            </div>
+
+            <button onclick="prosesLogin()" class="btn-primary" style="width: 100%; padding: 12px;">Masuk ke Dashboard</button>
+            
+            <div id="loginError" style="color: var(--unand-red); font-size: 13px; margin-top: 10px; display: none;">
+                ❌ Username atau Password salah!
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    ANIMATED BACKGROUND
+    ============================================================ -->
+    <div class="bg-glow"></div>
+
+    <!-- ============================================================
+    SIDEBAR OVERLAY (mobile)
+    ============================================================ -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- ============================================================
+    SIDEBAR
+    ============================================================ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo-wrapper">
+                <div class="brand-logo">
+                    <span class="logo-text">⚡</span>
+                </div>
+            </div>
+            <div class="brand-text">
+                <span class="brand-title">MFC Monitor</span>
+                <div class="brand-unand">
+                    <span class="unand-badge">UNAND</span>
+                    <span class="faculty-badge">Teknik Elektro</span>
+                </div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-label">Menu Utama</div>
+            <button class="nav-item active" data-page="dashboard">
+                <span class="nav-icon"><i class="fas fa-chart-pie"></i></span>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-item" data-page="historical">
+                <span class="nav-icon"><i class="fas fa-history"></i></span>
+                <span>Historis</span>
+                <span class="nav-badge">18</span>
+            </button>
+            <button class="nav-item" data-page="settings">
+                <span class="nav-icon"><i class="fas fa-sliders-h"></i></span>
+                <span>Pengaturan</span>
+            </button>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="device-status">
+                <span class="status-dot online"></span>
+                <span class="status-text">Device Online</span>
+            </div>
+            <div class="user-info">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="user-avatar">A</div>
+                    <!-- NAMA AKUN AKAN MUNCUL DI SINI -->
+                    <span class="user-name" id="displayUserName">Admin</span>
+                </div>
+                <!-- TOMBOL LOGOUT DIPERBAIKI -->
+                <button class="btn-logout" onclick="prosesLogout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ============================================================
+    MAIN CONTENT
+    ============================================================ -->
+    <main class="main-content" id="dashboard-content-to-pdf">
+
+        <!-- ============================================================
+        TOPBAR
+        ============================================================ -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="btn-hamburger" id="hamburgerBtn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="page-title-wrapper">
+                    <span class="page-title" id="pageTitle">Dashboard Monitoring</span>
+                    <span class="page-title-sub">Sistem Akuisisi Data MFC 4 Kanal</span>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <span class="datetime" id="datetime">Loading...</span>
+                <button class="btn-primary" id="downloadPDFBtn" title="Download Laporan PDF" style="padding: 8px 16px;">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+                <button class="btn-refresh" id="refreshBtn" title="Refresh Data">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- ============================================================
+        PAGE: DASHBOARD
+        ============================================================ -->
+        <section class="page-section active" id="page-dashboard">
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Total Pengukuran</span>
+                        <span class="stat-value" id="totalMeasurements">144</span>
+                        <span class="stat-sub">Jam</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-bolt"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Rata-rata Tegangan</span>
+                        <span class="stat-value" id="avgVoltage">325</span>
+                        <span class="stat-sub">mV</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-arrow-up"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Tegangan Maksimum</span>
+                        <span class="stat-value" id="maxVoltage">487</span>
+                        <span class="stat-sub">mV (CH4)</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-circle"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Status Sistem</span>
+                        <span class="stat-value status-online" id="systemStatus">Aktif</span>
+                        <span class="stat-sub">Online</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4 Chart Terpisah -->
+            <div class="charts-grid-container">
+                <section class="chart-section">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-line" style="color:var(--ch1);"></i> Grafik <span class="accent">CH1</span></h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chartCH1"></canvas>
+                    </div>
+                </section>
+                
+                <section class="chart-section">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-line" style="color:var(--ch2);"></i> Grafik <span class="accent">CH2</span></h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chartCH2"></canvas>
+                    </div>
+                </section>
+
+                <section class="chart-section">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-line" style="color:var(--ch3);"></i> Grafik <span class="accent">CH3</span></h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chartCH3"></canvas>
+                    </div>
+                </section>
+
+                <section class="chart-section">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-line" style="color:var(--ch4);"></i> Grafik <span class="accent">CH4</span></h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chartCH4"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Channel Cards -->
+            <section class="channels-grid" id="channelsGrid"></section>
+
+            <!-- Activity Log -->
+            <section class="log-section">
+                <div class="log-header">
+                    <h3><i class="fas fa-list-ul" style="color:var(--unand-green);"></i> Log Aktivitas Terbaru</h3>
+                    <button class="btn-view-all" onclick="switchPage('historical')">Lihat Semua <i class="fas fa-arrow-right"></i></button>
+                </div>
+                <div class="log-container" id="logContainer"></div>
+            </section>
+
+        </section>
+
+        <!-- ============================================================
+        PAGE: HISTORICAL
+        ============================================================ -->
+        <section class="page-section" id="page-historical">
+
+            <!-- Filter -->
+            <section class="filter-section">
+                <div class="filter-card">
+                    <div class="filter-group">
+                        <label><i class="fas fa-filter"></i> Kanal</label>
+                        <select id="filterChannel">
+                            <option value="all">Semua Kanal</option>
+                            <option value="1">CH1</option>
+                            <option value="2">CH2</option>
+                            <option value="3">CH3</option>
+                            <option value="4">CH4</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label><i class="far fa-calendar-alt"></i> Dari</label>
+                        <input type="datetime-local" id="filterFrom" />
+                    </div>
+                    <div class="filter-group">
+                        <label><i class="far fa-calendar-alt"></i> Sampai</label>
+                        <input type="datetime-local" id="filterTo" />
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn-primary" id="applyFilter"><i class="fas fa-check"></i> Terapkan</button>
+                        <button class="btn-secondary" id="resetFilter"><i class="fas fa-undo"></i> Reset</button>
+                        <button class="btn-secondary" id="compareModeBtn"><i class="fas fa-exchange-alt"></i> Bandingkan</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Historical Chart -->
+            <section class="chart-section" style="margin-bottom: 24px;">
+                <div class="chart-header">
+                    <h3><i class="fas fa-chart-bar" style="color:var(--unand-gold);"></i> Grafik Historis</h3>
+                    <div>
+                        <button class="btn-download" id="downloadChart"><i class="fas fa-download"></i> Download Chart</button>
+                    </div>
+                </div>
+                <div class="chart-container" style="height: 320px;">
+                    <canvas id="historicalChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Data Table -->
+            <section class="table-section">
+                <div class="table-header">
+                    <h3><i class="fas fa-table" style="color:var(--unand-green);"></i> Tabel Data Historis</h3>
+                    <div class="table-controls">
+                        <button class="btn-download" id="downloadCSV"><i class="fas fa-file-csv"></i> Download CSV</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>CH1 (mV)</th>
+                                <th>CH2 (mV)</th>
+                                <th>CH3 (mV)</th>
+                                <th>CH4 (mV)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                <div class="table-pagination">
+                    <button class="btn-pagination" id="prevPage"><i class="fas fa-chevron-left"></i></button>
+                    <span id="pageInfo">Halaman 1 dari 10</span>
+                    <button class="btn-pagination" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+                    <select id="rowsPerPage">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </section>
+
+        </section>
+
+        <!-- ============================================================
+        PAGE: SETTINGS
+        ============================================================ -->
+        <section class="page-section" id="page-settings">
+
+            <div class="settings-section">
+
+                <!-- System Config -->
+                <div class="settings-card">
+                    <h3><i class="fas fa-clock" style="color:var(--unand-green);"></i> Konfigurasi Pengukuran</h3>
+                    <div class="settings-group">
+                        <label>Interval Pengukuran</label>
+                        <div class="input-group">
+                            <input type="number" id="measureInterval" value="8" min="1" max="24" />
+                            <span class="input-suffix">Jam</span>
+                        </div>
+                        <button class="btn-primary btn-save" data-setting="interval"><i class="fas fa-save"></i> Simpan</button>
+                    </div>
+                    <div class="settings-group">
+                        <label>Interval Pengiriman Data</label>
+                        <div class="input-group">
+                            <input type="number" id="sendInterval" value="1" min="1" max="24" />
+                            <span class="input-suffix">Jam</span>
+                        </div>
+                        <button class="btn-primary btn-save" data-setting="sendInterval"><i class="fas fa-save"></i> Simpan</button>
+                    </div>
+                    <div class="settings-group">
+                        <label>Server URL</label>
+                        <div class="input-group full">
+                            <input type="url" id="serverUrl" value="https://api.mfc-monitor.com/data" />
+                        </div>
+                        <button class="btn-primary btn-save" data-setting="serverUrl"><i class="fas fa-save"></i> Simpan</button>
+                    </div>
+                </div>
+
+                <!-- Threshold Config -->
+                <div class="settings-card">
+                    <h3><i class="fas fa-exclamation-triangle" style="color:var(--unand-gold);"></i> Konfigurasi Ambang Batas (Threshold)</h3>
+                    <div class="table-container">
+                        <table class="threshold-table">
+                            <thead>
+                                <tr>
+                                    <th>Kanal</th>
+                                    <th>Min (mV)</th>
+                                    <th>Max (mV)</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="thresholdBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="btn-primary" id="addThreshold" style="margin-top:12px;"><i class="fas fa-plus"></i> Tambah Konfigurasi</button>
+                </div>
+
+                <!-- Device Info -->
+                <div class="settings-card">
+                    <h3><i class="fas fa-server" style="color:var(--unand-green);"></i> Informasi Perangkat</h3>
+                    <div class="device-info-grid">
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-tag"></i> Nama Perangkat</span>
+                            <span class="info-value">MFC-DAQ-001</span>
+                        </div>
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-code"></i> Firmware Version</span>
+                            <span class="info-value">v2.1.0</span>
+                        </div>
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-wifi"></i> Status Koneksi</span>
+                            <span class="info-value status-online"><i class="fas fa-circle" style="font-size:10px;"></i> Terhubung</span>
+                        </div>
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-clock"></i> Uptime</span>
+                            <span class="info-value">72 jam 14 menit</span>
+                        </div>
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-upload"></i> Terakhir Kirim Data</span>
+                            <span class="info-value">14:32 WIB</span>
+                        </div>
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-database"></i> Total Data Tersimpan</span>
+                            <span class="info-value">1,248</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="settings-card danger">
+                    <h3><i class="fas fa-skull" style="color:var(--unand-red);"></i> Zona Berbahaya</h3>
+                    <div class="danger-actions">
+                        <button class="btn-danger" onclick="resetAllData()"><i class="fas fa-trash"></i> Reset Semua Data</button>
+                        <button class="btn-danger" onclick="factoryReset()"><i class="fas fa-undo-alt"></i> Factory Reset</button>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- ============================================================
+    TOAST CONTAINER
+    ============================================================ -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ============================================================
+    JAVASCRIPT
+    ============================================================ -->
+    <script>
+        // ============================================================
+        // SISTEM LOGIN & OTENTIKASI (FRONTEND)
+        // ============================================================
+        // Daftar akun (Bisa Anda tambah/hapus manual di sini)
+        const DAFTAR_AKUN = [
+            { username: "admin", password: "admin123", nama: "Admin Lab" },
+            { username: "alfi", password: "alfi123", nama: "Alfi Syukri" },
+            { username: "raynaldi", password: "raynaldi123", nama: "Raynaldi A." },
+            { username: "raditya", password: "raditya123", nama: "Raditya R.H." }
+        ];
+
+        function prosesLogin() {
+            const user = document.getElementById('loginUsername').value;
+            const pass = document.getElementById('loginPassword').value;
+            const errorMsg = document.getElementById('loginError');
+
+            // Cari akun yang cocok
+            const akunCocok = DAFTAR_AKUN.find(a => a.username === user && a.password === pass);
+
+            if (akunCocok) {
+                // Simpan sesi di browser (LocalStorage)
+                localStorage.setItem('mfc_logged_in', 'true');
+                localStorage.setItem('mfc_user_name', akunCocok.nama);
+                
+                // Sembunyikan layar login
+                document.getElementById('loginScreen').style.display = 'none';
+                
+                // Update nama di sidebar
+                document.getElementById('displayUserName').textContent = akunCocok.nama;
+                
+                showToast('success', `Selamat datang, ${akunCocok.nama}!`);
+            } else {
+                // Tampilkan error
+                errorMsg.style.display = 'block';
+                setTimeout(() => { errorMsg.style.display = 'none'; }, 3000);
+            }
+        }
+
+        function prosesLogout() {
+            if (confirm('Apakah Anda yakin ingin keluar?')) {
+                localStorage.removeItem('mfc_logged_in');
+                localStorage.removeItem('mfc_user_name');
+                location.reload(); // Refresh halaman untuk kembali ke login
+            }
+        }
+
+        function cekSesiLogin() {
+            const isLoggedIn = localStorage.getItem('mfc_logged_in');
+            const userName = localStorage.getItem('mfc_user_name');
+
+            if (isLoggedIn === 'true' && userName) {
+                // Jika sudah login, sembunyikan layar login dan tampilkan nama
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('displayUserName').textContent = userName;
+            } else {
+                // Jika belum, tampilkan layar login
+                document.getElementById('loginScreen').style.display = 'flex';
+            }
+        }
+
+        // ============================================================
+        // KONFIGURASI LUAS ELEKTRODA (Untuk Power Density)
+        // ============================================================
+        const AREA_ELECTRODE_M2 = 0.005; // 50 cm2 = 0.005 m2. Sesuaikan dengan penelitian!
+
+        // ============================================================
+        // DATA GENERATOR (Simulasi 4 Kanal MFC)
+        // ============================================================
+        const CHANNEL_COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B'];
+        const CHANNEL_NAMES = ['CH1', 'CH2', 'CH3', 'CH4'];
+
+        function randomVoltage() {
+            return Math.round(200 + Math.random() * 300);
+        }
+
+        function generateHistoricalData() {
+            const data = [];
+            const now = new Date();
+            for (let i = 0; i < 18; i++) {
+                const time = new Date(now.getTime() - (18 - i) * 8 * 3600000);
+                const row = {
+                    time: time.toISOString().replace('T', ' ').slice(0, 16),
+                    channels: []
+                };
+                for (let c = 0; c < 4; c++) {
+                    row.channels.push(randomVoltage());
+                }
+                data.push(row);
+            }
+            return data;
+        }
+
+        function generateCurrentData() {
+            const data = [];
+            for (let c = 0; c < 4; c++) {
+                data.push(randomVoltage());
+            }
+            return data;
+        }
+
+        function generateLogs() {
+            const actions = [
+                'Sistem mulai monitoring - Semua kanal aktif',
+                'Data berhasil dikirim ke server #12345',
+                'Kanal 4: Tegangan turun di bawah threshold',
+                'Kalibrasi ulang selesai untuk semua kanal',
+                'Koneksi server terputus, data disimpan lokal',
+                'Koneksi server pulih, data dikirim ulang',
+                'Pengukuran otomatis dimulai siklus ke-12',
+                'Kanal 3: Tegangan melewati batas maksimum',
+                'Data historis berhasil diekspor'
+            ];
+            const logs = [];
+            const now = new Date();
+            for (let i = 0; i < 12; i++) {
+                const time = new Date(now.getTime() - i * 120000);
+                logs.push({
+                    time: time.toTimeString().slice(0, 5),
+                    message: actions[Math.floor(Math.random() * actions.length)]
+                });
+            }
+            return logs;
+        }
+
+        // ============================================================
+        // STATE
+        // ============================================================
+        let state = {
+            historicalData: generateHistoricalData(),
+            currentData: generateCurrentData(),
+            logs: generateLogs(),
+            chartRange: '1h',
+            filterChannel: 'all',
+            filterFrom: null,
+            filterTo: null,
+            currentPage: 1,
+            rowsPerPage: 10,
+            thresholds: [
+                { channel: 1, min: 150, max: 500 },
+                { channel: 2, min: 150, max: 500 },
+                { channel: 3, min: 150, max: 500 },
+                { channel: 4, min: 150, max: 500 },
+            ]
+        };
+
+        let charts = { ch1: null, ch2: null, ch3: null, ch4: null, historical: null };
+        let isCompareMode = false;
+
+        const $ = (id) => document.getElementById(id);
+        const $$ = (sel) => document.querySelectorAll(sel);
+
+        // ============================================================
+        // UTILITY FUNCTIONS
+        // ============================================================
+        function getStatus(voltage) {
+            if (voltage > 450) return { label: 'Over', class: 'error' };
+            if (voltage < 200) return { label: 'Low', class: 'warning' };
+            return { label: 'Normal', class: 'ok' };
+        }
+
+        function getStatusBadge(voltage) {
+            const s = getStatus(voltage);
+            return `<span class="status-badge ${s.class}">${s.label}</span>`;
+        }
+
+        function getResistor(channel) {
+            // Semua kanal menggunakan resistor 510 Ohm (0.51 kΩ)
+            return 0.51;
+        }
+
+        function calculateCurrent(voltage, channel) {
+            const r = getResistor(channel);
+            return (voltage / (r * 1000));
+        }
+
+        function getFilteredData() {
+            let data = state.historicalData;
+            if (state.filterChannel !== 'all') {
+                const idx = parseInt(state.filterChannel) - 1;
+                data = data.map(row => ({
+                    time: row.time,
+                    channels: row.channels.map((v, i) => i === idx ? v : null)
+                }));
+            }
+            if (state.filterFrom) {
+                const from = new Date(state.filterFrom);
+                data = data.filter(row => new Date(row.time) >= from);
+            }
+            if (state.filterTo) {
+                const to = new Date(state.filterTo);
+                data = data.filter(row => new Date(row.time) <= to);
+            }
+            return data;
+        }
+
+        function getPaginatedData(data) {
+            const start = (state.currentPage - 1) * state.rowsPerPage;
+            const end = start + state.rowsPerPage;
+            return data.slice(start, end);
+        }
+
+        // ============================================================
+        // TOAST NOTIFICATION
+        // ============================================================
+        function showToast(type, message) {
+            const container = $('toastContainer');
+            const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'error' ? 'error' : type === 'warning' ? 'warning' : ''}`;
+            toast.innerHTML = `
+                        <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+                        <span class="toast-message">${message}</span>
+                        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+                    `;
+            container.appendChild(toast);
+            setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
+        }
+
+        // ============================================================
+        // FITUR 4: OFFLINE DATA LOGGING & SINKRONISASI (Sisi Web)
+        // ============================================================
+        function simpanKeLocalStorage(data) {
+            let offlineData = JSON.parse(localStorage.getItem('mfc_offline_data')) || [];
+            const waktu = new Date().toISOString().replace('T', ' ').slice(0, 16);
+            offlineData.push({ time: waktu, channels: data });
+            if (offlineData.length > 100) offlineData.shift(); // Batasi 100 data
+            localStorage.setItem('mfc_offline_data', JSON.stringify(offlineData));
+        }
+
+        function syncOfflineData() {
+            let offlineData = JSON.parse(localStorage.getItem('mfc_offline_data')) || [];
+            if (offlineData.length > 0 && mqttConnected) {
+                showToast('info', `🔄 Menyinkronkan ${offlineData.length} data offline...`);
+                offlineData.forEach(data => {
+                    const payload = {
+                        device_id: 'web_backup',
+                        timestamp: new Date(data.time).toISOString(),
+                        is_sync: true,
+                        channels: data.channels.map((v, i) => ({ channel: i + 1, voltage: v }))
+                    };
+                    mqttClient.publish(MQTT_CONFIG.topics.data, JSON.stringify(payload), { qos: 1 });
+                });
+                localStorage.removeItem('mfc_offline_data');
+                showToast('success', '✅ Sinkronisasi offline selesai!');
+            }
+        }
+
+        // ============================================================
+        // RENDER FUNCTIONS
+        // ============================================================
+        function renderChannels() {
+            const grid = $('channelsGrid');
+            const data = state.currentData;
+            grid.innerHTML = '';
+            data.forEach((voltage, idx) => {
+                const channel = idx + 1;
+                const current = calculateCurrent(voltage, channel);
+                const resistor = getResistor(channel);
+                
+                // FITUR 1: Perhitungan Daya & Power Density
+                const power_mW = voltage * current / 1000;
+                const powerDensity = power_mW / AREA_ELECTRODE_M2;
+
+                const card = document.createElement('div');
+                card.className = 'channel-card';
+                card.innerHTML = `
+                            <div class="channel-header">
+                                <span class="channel-number">CH${channel}</span>
+                                ${getStatusBadge(voltage)}
+                            </div>
+                            <div class="channel-body">
+                                <div class="value-box">
+                                    <span class="label">Tegangan</span>
+                                    <span class="value">${voltage}</span>
+                                    <span class="unit">mV</span>
+                                </div>
+                                <div class="value-box">
+                                    <span class="label">Arus</span>
+                                    <span class="value">${current.toFixed(3)}</span>
+                                    <span class="unit">mA</span>
+                                </div>
+                                <div class="value-box">
+                                    <span class="label">Resistor</span>
+                                    <span class="value">${resistor}</span>
+                                    <span class="unit">kΩ</span>
+                                </div>
+                                <div class="value-box">
+                                    <span class="label">Daya</span>
+                                    <span class="value">${power_mW.toFixed(3)}</span>
+                                    <span class="unit">mW</span>
+                                </div>
+                                <div class="value-box">
+                                    <span class="label">Pwr D.</span>
+                                    <span class="value">${powerDensity.toFixed(0)}</span>
+                                    <span class="unit">mW/m²</span>
+                                </div>
+                            </div>
+                            <div class="channel-footer">
+                                <span>Update: ${new Date().toTimeString().slice(0, 8)}</span>
+                                <button class="btn-detail" onclick="showToast('info', 'Detail CH${channel}: ${voltage} mV, ${current.toFixed(3)} mA')">Detail <i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderLogs() {
+            const container = $('logContainer');
+            container.innerHTML = '';
+            state.logs.slice(0, 10).forEach(log => {
+                const div = document.createElement('div');
+                div.className = 'log-item';
+                div.innerHTML = `<span class="log-time">${log.time}</span><span class="log-message">${log.message}</span>`;
+                container.appendChild(div);
+            });
+        }
+
+        function renderStats() {
+            const data = state.currentData;
+            const avg = Math.round(data.reduce((a, b) => a + b, 0) / data.length);
+            const max = Math.max(...data);
+            const maxIdx = data.indexOf(max) + 1;
+
+            $('totalMeasurements').textContent = '144';
+            $('avgVoltage').textContent = avg;
+            $('maxVoltage').textContent = max;
+            $('maxVoltage').nextElementSibling.textContent = `mV (CH${maxIdx})`;
+        }
+
+        function renderMainCharts() {
+            const histData = state.historicalData.slice(-18);
+            const histLabels = histData.map(row => row.time.slice(11, 16));
+            const allLabels = [...histLabels, 'Sekarang'];
+
+            const chartConfigs = [
+                { id: 'chartCH1', index: 0, color: CHANNEL_COLORS[0] },
+                { id: 'chartCH2', index: 1, color: CHANNEL_COLORS[1] },
+                { id: 'chartCH3', index: 2, color: CHANNEL_COLORS[2] },
+                { id: 'chartCH4', index: 3, color: CHANNEL_COLORS[3] }
+            ];
+
+            chartConfigs.forEach(config => {
+                const ctx = document.getElementById(config.id).getContext('2d');
+                
+                if (config.index === 0 && charts.ch1) charts.ch1.destroy();
+                if (config.index === 1 && charts.ch2) charts.ch2.destroy();
+                if (config.index === 2 && charts.ch3) charts.ch3.destroy();
+                if (config.index === 3 && charts.ch4) charts.ch4.destroy();
+
+                const values = histData.map(row => row.channels[config.index]);
+                values.push(state.currentData[config.index]);
+
+                const newChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: allLabels,
+                        datasets: [{
+                            label: CHANNEL_NAMES[config.index],
+                            data: values,
+                            borderColor: config.color,
+                            backgroundColor: config.color + '20',
+                            borderWidth: 2.5,
+                            pointRadius: 3,
+                            pointBackgroundColor: config.color,
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 1,
+                            tension: 0.4,
+                            fill: true,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(255,255,255,0.95)',
+                                titleColor: '#1e293b',
+                                bodyColor: '#64748b',
+                                borderColor: '#e2e8f0',
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                padding: 10,
+                                callbacks: { label: function(context) { return context.parsed.y + ' mV'; } }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#64748b', font: { size: 10 } } },
+                            x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 6 } }
+                        },
+                        interaction: { intersect: false, mode: 'index' }
+                    }
+                });
+
+                if (config.index === 0) charts.ch1 = newChart;
+                if (config.index === 1) charts.ch2 = newChart;
+                if (config.index === 2) charts.ch3 = newChart;
+                if (config.index === 3) charts.ch4 = newChart;
+            });
+        }
+
+        function renderHistoricalChart() {
+            const ctx = document.getElementById('historicalChart').getContext('2d');
+            if (charts.historical) charts.historical.destroy();
+
+            let datasets = [];
+            let labels = [];
+
+            if (isCompareMode) {
+                // FITUR 3: Mode Perbandingan (Data Awal vs Data Akhir)
+                const midIndex = Math.floor(state.historicalData.length / 2);
+                const data1 = state.historicalData.slice(0, midIndex);
+                const data2 = state.historicalData.slice(midIndex);
+                
+                labels = data1.map(row => row.time.slice(11, 16)); // Gunakan label data1
+
+                datasets = [
+                    {
+                        label: 'Periode Awal (CH1)',
+                        data: data1.map(row => row.channels[0]),
+                        borderColor: CHANNEL_COLORS[0],
+                        borderWidth: 2,
+                        borderDash: [],
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Periode Akhir (CH1)',
+                        data: data2.map(row => row.channels[0]),
+                        borderColor: CHANNEL_COLORS[0] + '80', // Sedikit transparan
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.4
+                    }
+                ];
+            } else {
+                // Mode Normal
+                const data = getFilteredData();
+                labels = data.map(row => row.time.slice(11, 16));
+                datasets = CHANNEL_NAMES.map((name, idx) => {
+                    const values = data.map(row => row.channels[idx] !== null ? row.channels[idx] : null);
+                    return {
+                        label: name,
+                        data: values,
+                        borderColor: CHANNEL_COLORS[idx],
+                        backgroundColor: CHANNEL_COLORS[idx] + '15',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointBackgroundColor: CHANNEL_COLORS[idx],
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1,
+                        tension: 0.4,
+                        fill: false,
+                        spanGaps: true
+                    };
+                });
+            }
+
+            charts.historical = new Chart(ctx, {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#64748b', usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11 } } },
+                        tooltip: {
+                            backgroundColor: 'rgba(255,255,255,0.95)',
+                            titleColor: '#1e293b',
+                            bodyColor: '#64748b',
+                            borderColor: '#e2e8f0',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.parsed.y === null) return context.dataset.label + ': No data';
+                                    return context.dataset.label + ': ' + context.parsed.y + ' mV';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#64748b', font: { size: 11 } } },
+                        x: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 15 } }
+                    },
+                    interaction: { intersect: false, mode: 'index' }
+                }
+            });
+        }
+
+        function renderTable() {
+            const tbody = $('tableBody');
+            const data = getFilteredData();
+            const paginated = getPaginatedData(data);
+            const totalPages = Math.ceil(data.length / state.rowsPerPage) || 1;
+
+            tbody.innerHTML = '';
+            if (paginated.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary);">Tidak ada data</td></tr>`;
+                $('pageInfo').textContent = `Halaman 1 dari 1`;
+                return;
+            }
+
+            paginated.forEach(row => {
+                const tr = document.createElement('tr');
+                let statuses = row.channels.map(v => getStatus(v).label);
+                let statusColor = statuses.every(s => s === 'Normal') ? 'var(--unand-green)' :
+                    statuses.some(s => s === 'Over') ? 'var(--unand-red)' : 'var(--unand-gold)';
+                let statusLabel = statuses.every(s => s === 'Normal') ? 'Normal' :
+                    statuses.some(s => s === 'Over') ? 'Ada Over' : 'Ada Low';
+
+                let cells = `<td>${row.time}</td>`;
+                row.channels.forEach(v => {
+                    cells += `<td>${v !== null ? v : '-'}</td>`;
+                });
+                cells += `<td><span style="color:${statusColor};font-weight:600;">${statusLabel}</span></td>`;
+                tr.innerHTML = cells;
+                tbody.appendChild(tr);
+            });
+
+            $('pageInfo').textContent = `Halaman ${state.currentPage} dari ${totalPages}`;
+            $('prevPage').disabled = state.currentPage <= 1;
+            $('nextPage').disabled = state.currentPage >= totalPages;
+        }
+
+        function renderThresholds() {
+            const tbody = $('thresholdBody');
+            tbody.innerHTML = '';
+            state.thresholds.forEach((t, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                            <td>CH${t.channel}</td>
+                            <td><input type="number" value="${t.min}" data-idx="${idx}" data-field="min" /></td>
+                            <td><input type="number" value="${t.max}" data-idx="${idx}" data-field="max" /></td>
+                            <td>
+                                <button class="btn-edit" onclick="saveThreshold(${idx})"><i class="fas fa-save"></i></button>
+                                <button class="btn-delete" onclick="deleteThreshold(${idx})"><i class="fas fa-trash"></i></button>
+                            </td>
+                        `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ============================================================
+        // INTERACTION & LOGIC FUNCTIONS
+        // ============================================================
+        function saveThreshold(idx) {
+            const row = $('thresholdBody').children[idx];
+            const inputs = row.querySelectorAll('input');
+            state.thresholds[idx].min = parseInt(inputs[0].value);
+            state.thresholds[idx].max = parseInt(inputs[1].value);
+            showToast('success', `Threshold CH${state.thresholds[idx].channel} berhasil disimpan!`);
+        }
+
+        function deleteThreshold(idx) {
+            if (state.thresholds.length <= 1) { showToast('warning', 'Minimal 1 threshold harus ada!'); return; }
+            state.thresholds.splice(idx, 1);
+            renderThresholds();
+            showToast('info', 'Threshold berhasil dihapus!');
+        }
+
+        document.querySelectorAll('.btn-save').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const setting = this.dataset.setting;
+                let value = "";
+                if (setting === 'interval') value = $('measureInterval').value;
+                if (setting === 'sendInterval') value = $('sendInterval').value;
+                if (setting === 'serverUrl') value = $('serverUrl').value;
+                showToast('success', `Pengaturan ${setting} berhasil disimpan: ${value}`);
+            });
+        });
+
+        function resetAllData() {
+            if (confirm('Yakin ingin mereset semua data? Tindakan ini tidak dapat dibatalkan!')) {
+                state.historicalData = generateHistoricalData();
+                state.currentData = generateCurrentData();
+                state.logs = generateLogs();
+                renderAll();
+                showToast('warning', 'Semua data telah direset!');
+            }
+        }
+
+        function factoryReset() {
+            if (confirm('Yakin ingin factory reset? Semua pengaturan akan kembali ke default!')) {
+                state.thresholds = [
+                    { channel: 1, min: 150, max: 500 }, { channel: 2, min: 150, max: 500 },
+                    { channel: 3, min: 150, max: 500 }, { channel: 4, min: 150, max: 500 },
+                ];
+                $('measureInterval').value = 8;
+                $('sendInterval').value = 1;
+                $('serverUrl').value = 'https://api.mfc-monitor.com/data';
+                renderThresholds();
+                showToast('warning', 'Factory Reset berhasil!');
+            }
+        }
+
+        $('addThreshold').addEventListener('click', function() {
+            const newChannel = state.thresholds.length + 1;
+            if (newChannel > 4) { showToast('warning', 'Maksimal 4 kanal!'); return; }
+            state.thresholds.push({ channel: newChannel, min: 150, max: 500 });
+            renderThresholds();
+            showToast('success', `Threshold CH${newChannel} berhasil ditambahkan!`);
+        });
+
+        // ============================================================
+        // FITUR 2: EKSPOR LAPORAN PDF
+        // ============================================================
+        $('downloadPDFBtn').addEventListener('click', function() {
+            const element = document.getElementById('page-dashboard');
+            
+            // Sembunyikan tombol-tombol yang tidak perlu di PDF
+            const btns = document.querySelectorAll('.topbar-right button, .btn-view-all');
+            btns.forEach(b => b.style.display = 'none');
+
+            const opt = {
+                margin:       10,
+                filename:     `Laporan_MFC_${new Date().toISOString().slice(0,10)}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#f8fafc' },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            showToast('info', 'Sedang membuat laporan PDF...');
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                // Tampilkan kembali tombolnya
+                btns.forEach(b => b.style.display = '');
+                showToast('success', 'Laporan PDF berhasil diunduh!');
+            });
+        });
+
+        // ============================================================
+        // EXPORT CSV & CHART
+        // ============================================================
+        $('downloadCSV').addEventListener('click', function() {
+            const data = getFilteredData();
+            if (data.length === 0) { showToast('warning', 'Tidak ada data untuk diekspor!'); return; }
+            let csv = 'Waktu,CH1,CH2,CH3,CH4\n';
+            data.forEach(row => { csv += row.time + ',' + row.channels.join(',') + '\n'; });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mfc_data_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('success', 'CSV berhasil didownload!');
+        });
+
+        $('downloadChart').addEventListener('click', function() {
+            const canvas = document.getElementById('historicalChart');
+            const link = document.createElement('a');
+            link.download = `mfc_chart_${new Date().toISOString().slice(0,10)}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showToast('success', 'Chart berhasil didownload!');
+        });
+
+        // ============================================================
+        // FITUR 3: FILTER & TOMBOL BANDINGKAN
+        // ============================================================
+        $('compareModeBtn').addEventListener('click', function() {
+            isCompareMode = !isCompareMode;
+            this.classList.toggle('active');
+            showToast('info', isCompareMode ? 'Mode Bandingkan Aktif' : 'Mode Normal');
+            renderHistoricalChart();
+        });
+
+        $('applyFilter').addEventListener('click', function() {
+            state.filterChannel = $('filterChannel').value;
+            state.filterFrom = $('filterFrom').value;
+            state.filterTo = $('filterTo').value;
+            state.currentPage = 1;
+            renderHistoricalChart();
+            renderTable();
+            showToast('info', 'Filter diterapkan!');
+        });
+
+        $('resetFilter').addEventListener('click', function() {
+            $('filterChannel').value = 'all';
+            $('filterFrom').value = '';
+            $('filterTo').value = '';
+            state.filterChannel = 'all';
+            state.filterFrom = null;
+            state.filterTo = null;
+            state.currentPage = 1;
+            renderHistoricalChart();
+            renderTable();
+            showToast('info', 'Filter direset!');
+        });
+
+        // ============================================================
+        // PAGINATION
+        // ============================================================
+        $('prevPage').addEventListener('click', function() { if (state.currentPage > 1) { state.currentPage--; renderTable(); } });
+        $('nextPage').addEventListener('click', function() {
+            const totalPages = Math.ceil(getFilteredData().length / state.rowsPerPage);
+            if (state.currentPage < totalPages) { state.currentPage++; renderTable(); }
+        });
+        $('rowsPerPage').addEventListener('change', function() { state.rowsPerPage = parseInt(this.value); state.currentPage = 1; renderTable(); });
+
+        // ============================================================
+        // NAVIGATION & SIDEBAR
+        // ============================================================
+        function switchPage(page) {
+            document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(`page-${page}`).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+
+            const titles = { dashboard: 'Dashboard Monitoring', historical: 'Data Historis', settings: 'Pengaturan Sistem' };
+            $('pageTitle').textContent = titles[page] || 'MFC Monitor';
+            closeSidebar();
+            if (page === 'historical') { renderHistoricalChart(); renderTable(); }
+        }
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() { switchPage(this.dataset.page); });
+        });
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('active');
+        }
+        $('hamburgerBtn').addEventListener('click', toggleSidebar);
+        $('sidebarOverlay').addEventListener('click', closeSidebar);
+
+        $('refreshBtn').addEventListener('click', function() {
+            state.currentData = generateCurrentData();
+            state.logs = generateLogs();
+            renderAll();
+            showToast('success', 'Data berhasil diperbarui!');
+        });
+
+        // ============================================================
+        // CLOCK & AUTO REFRESH
+        // ============================================================
+        function updateClock() {
+            const now = new Date();
+            $('datetime').textContent = now.toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function renderAll() {
+            renderStats();
+            renderChannels();
+            renderLogs();
+            renderMainCharts();
+            renderThresholds();
+            if (document.getElementById('page-historical').classList.contains('active')) {
+                renderHistoricalChart();
+                renderTable();
+            }
+        }
+
+        setInterval(() => {
+            // Simulasi data baru (Hanya jika tidak ada data real dari MQTT)
+            if (!mqttConnected) {
+                state.currentData = generateCurrentData();
+                if (Math.random() > 0.7) {
+                    const actions = ['Data real-time diperbarui', 'Pembacaan sensor berhasil', 'Kanal ' + (Math.floor(Math.random() * 4) + 1) + ': pembacaan stabil'];
+                    state.logs.unshift({ time: new Date().toTimeString().slice(0, 5), message: actions[Math.floor(Math.random() * actions.length)] });
+                    if (state.logs.length > 50) state.logs.pop();
+                }
+                if (document.getElementById('page-dashboard').classList.contains('active')) {
+                    renderChannels(); renderStats(); renderLogs(); renderMainCharts();
+                }
+            }
+        }, 5000);
+
+        // ============================================================
+        // KONFIGURASI & KONEKSI MQTT
+        // ============================================================
+        const MQTT_CONFIG = {
+            brokerUrl: 'wss://bde75053e77747f8981695c305f824db.s1.eu.hivemq.cloud:8884/mqtt',
+            username: 'MFCMONITORING',
+            password: 'aldi1234',
+            clientId: `mfc_web_${Math.random().toString(16).substring(2, 10)}`,
+            topics: { data: 'mfc/data', status: 'mfc/status', command: 'mfc/command' }
+        };
+
+        let mqttClient = null;
+        let mqttConnected = false;
+
+        function connectMQTT() {
+            const options = {
+                clientId: MQTT_CONFIG.clientId, username: MQTT_CONFIG.username, password: MQTT_CONFIG.password,
+                clean: true, connectTimeout: 4000, reconnectPeriod: 5000, keepAlive: 60
+            };
+
+            mqttClient = mqtt.connect(MQTT_CONFIG.brokerUrl, options);
+
+            mqttClient.on('connect', () => {
+                console.log('✅ Terhubung ke HiveMQ Cloud');
+                mqttConnected = true;
+                showToast('success', '📡 Terhubung ke HiveMQ Cloud!');
+                mqttClient.subscribe(MQTT_CONFIG.topics.data);
+                mqttClient.subscribe(MQTT_CONFIG.topics.status);
+                document.querySelector('.status-text').textContent = 'MQTT Connected';
+                document.querySelector('.status-dot').className = 'status-dot online';
+                
+                // Cek dan kirim data offline jika ada
+                syncOfflineData();
+            });
+
+            mqttClient.on('message', (topic, payload) => {
+                try {
+                    const message = JSON.parse(payload.toString());
+                    if (topic === MQTT_CONFIG.topics.data && message.channels) {
+                        const newData = [];
+                        message.channels.forEach(ch => { newData[ch.channel - 1] = ch.voltage; });
+
+                        if (newData.length === 4 && newData.every(v => v !== undefined)) {
+                            
+                            // JIKA DATA DARI MASA LALU (SINKRONISASI)
+                            if (message.is_sync) {
+                                const timeStr = new Date(message.timestamp).toISOString().replace('T', ' ').slice(0, 16);
+                                state.historicalData.push({ time: timeStr, channels: newData });
+                                state.historicalData.sort((a, b) => new Date(a.time) - new Date(b.time));
+                                if (document.getElementById('page-historical').classList.contains('active')) {
+                                    renderHistoricalChart(); renderTable();
+                                }
+                                return;
+                            }
+
+                            // JIKA DATA REAL-TIME
+                            state.currentData = newData;
+                            renderStats(); renderChannels(); renderMainCharts();
+                            
+                            // Simpan ke LocalStorage sebagai backup
+                            simpanKeLocalStorage(newData);
+                        }
+                    }
+                } catch (error) { console.error('❌ Error:', error); }
+            });
+
+            mqttClient.on('error', (error) => {
+                console.error('❌ MQTT Error:', error);
+                mqttConnected = false;
+                document.querySelector('.status-text').textContent = 'MQTT Error';
+                document.querySelector('.status-dot').className = 'status-dot offline';
+            });
+
+            mqttClient.on('offline', () => {
+                console.log('📴 MQTT Offline');
+                mqttConnected = false;
+                document.querySelector('.status-text').textContent = 'MQTT Offline';
+                document.querySelector('.status-dot').className = 'status-dot offline';
+            });
+        }
+
+        function sendCommand(action) {
+            if (!mqttClient || !mqttConnected) { showToast('warning', '⚠️ MQTT belum terhubung'); return; }
+            const command = { action, timestamp: new Date().toISOString() };
+            mqttClient.publish(MQTT_CONFIG.topics.command, JSON.stringify(command), { qos: 1 });
+        }
+
+        // Cek koneksi internet saat halaman dimuat
+        window.addEventListener('online', function() {
+            showToast('success', '🌐 Internet kembali!');
+            if (mqttClient) syncOfflineData();
+        });
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        
+        // Cek sesi login terlebih dahulu
+        cekSesiLogin();
+
+        renderAll();
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 3600000);
+        $('filterFrom').value = oneWeekAgo.toISOString().slice(0, 16);
+        $('filterTo').value = now.toISOString().slice(0, 16);
+
+        connectMQTT();
+    </script>
+
+</body>
+</html>
