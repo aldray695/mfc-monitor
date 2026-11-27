@@ -1489,7 +1489,7 @@
         setInterval(updateClock, 1000);
         updateClock();
         setInterval(() => {
-    if (mqttConnected && !isDeviceOffline && (Date.now() - lastDeviceTime > 10000)) {
+    if (mqttConnected && !isDeviceOffline && (Date.now() - lastDeviceTime > 60000)) {
         document.querySelector('.status-text').textContent = 'Device Offline';
         document.querySelector('.status-dot').className = 'status-dot offline';
         showToast('error', '❌ ESP32 Terputus! Tidak ada data masuk.');
