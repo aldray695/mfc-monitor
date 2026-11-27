@@ -1539,9 +1539,9 @@
             mqttClient = mqtt.connect(MQTT_CONFIG.brokerUrl, options);
 
             mqttClient.on('connect', () => {
-                console.log('✅ Terhubung ke HiveMQ Cloud');
+                console.log('✅ Terhubung ke EMQX Cloud');
                 mqttConnected = true;
-                showToast('success', '📡 Terhubung ke HiveMQ Cloud!');
+                showToast('success', '📡 Terhubung ke EMQX Cloud!');
                 mqttClient.subscribe(MQTT_CONFIG.topics.data);
                 mqttClient.subscribe(MQTT_CONFIG.topics.status);
                 document.querySelector('.status-text').textContent = 'MQTT Connected';
