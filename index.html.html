@@ -1520,12 +1520,12 @@
         // KONFIGURASI & KONEKSI MQTT
         // ============================================================
         const MQTT_CONFIG = {
-            brokerUrl: 'wss://bde75053e77747f8981695c305f824db.s1.eu.hivemq.cloud:8884/mqtt',
-            username: 'MFCMONITORING',
-            password: 'aldi1234',
-            clientId: `mfc_web_${Math.random().toString(16).substring(2, 10)}`,
-            topics: { data: 'mfc/data', status: 'mfc/status', command: 'mfc/command' }
-        };
+        brokerUrl: 'wss://tfb81266.ala.us-east-1.emqx.cloud:8084/mqtt', // <-- GANTI URL
+        username: 'mfcproject',                                         // <-- GANTI USERNAME
+        password: 'project1234',                                        // <-- GANTI PASSWORD
+        clientId: `mfc_web_${Math.random().toString(16).substring(2, 10)}`,
+        topics: { data: 'mfc/data', status: 'mfc/status', command: 'mfc/command' }
+    };
 
         let mqttClient = null;
         let mqttConnected = false;
