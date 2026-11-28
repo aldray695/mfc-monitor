@@ -326,19 +326,6 @@
 
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 99; }
         .sidebar-overlay.active { display: block; }
-
-                /* ============================================================
-           TAMBAHAN STYLE UNTUK HALAMAN PENGATURAN BARU
-           ============================================================ */
-        .pengaturan-baris { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
-        .pengaturan-baris:last-child { border-bottom: none; }
-        .pengaturan-label { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
-        .pengaturan-nilai { font-size: 14px; font-weight: 700; color: var(--text-primary); }
-        .badge-status { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-        .badge-status.online { background: var(--unand-green-bg); color: var(--unand-green); }
-        .badge-status.offline { background: #fef2f2; color: var(--unand-red); }
-        .btn-simpan-lebar { width: 100%; padding: 10px; margin-top: 16px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-secondary); font-weight: 600; cursor: pointer; transition: var(--transition); }
-        .btn-simpan-lebar:hover { background: var(--unand-green-bg); color: var(--unand-green); border-color: var(--unand-green); }
     </style>
 </head>
 <body>
@@ -651,86 +638,92 @@
         <section class="page-section" id="page-settings">
 
             <div class="settings-section">
-
-                       <section class="page-section" id="page-settings">
-            <div class="settings-section">
-
-                <!-- A. Konfigurasi Pengukuran -->
+                                <!-- System Config -->
                 <div class="settings-card">
-                    <h3><i class="fas fa-sliders-h" style="color:var(--unand-green);"></i> A. Konfigurasi Pengukuran</h3>
-                    
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">Interval pembacaan</span>
-                        <span class="pengaturan-nilai">2 detik</span>
+                    <h3><i class="fas fa-clock" style="color:var(--unand-green);"></i> Konfigurasi Pengukuran</h3>
+                    <div class="settings-group">
+                        <label>Interval Pengukuran</label>
+                        <div class="input-group">
+                            <input type="number" id="measureInterval" value="8" min="1" max="24" />
+                            <span class="input-suffix">Jam</span>
+                        </div>
+                        <button class="btn-primary btn-save" data-setting="interval"><i class="fas fa-save"></i> Simpan</button>
                     </div>
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">Interval sampling penelitian</span>
-                        <span class="pengaturan-nilai">8 jam</span>
+                    <div class="settings-group">
+                        <label>Interval Pengiriman Data</label>
+                        <div class="input-group">
+                            <input type="number" id="sendInterval" value="1" min="1" max="24" />
+                            <span class="input-suffix">Jam</span>
+                        </div>
+                        <button class="btn-primary btn-save" data-setting="sendInterval"><i class="fas fa-save"></i> Simpan</button>
                     </div>
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">Median / Rata-rata</span>
-                        <span class="pengaturan-nilai">3 / 4 sampel</span>
+                    <div class="settings-group">
+                        <label>Server URL</label>
+                        <div class="input-group full">
+                            <input type="url" id="serverUrl" value="https://api.mfc-monitor.com/data" />
+                        </div>
+                        <button class="btn-primary btn-save" data-setting="serverUrl"><i class="fas fa-save"></i> Simpan</button>
                     </div>
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">Durasi pencatatan</span>
-                        <span class="pengaturan-nilai">144 jam</span>
-                    </div>
-
-                    <button class="btn-simpan-lebar">Simpan konfigurasi</button>
                 </div>
 
-                <!-- B. Konfigurasi Pengiriman Data -->
+                <!-- Threshold Config -->
                 <div class="settings-card">
-                    <h3><i class="fas fa-paper-plane" style="color:var(--unand-green);"></i> B. Konfigurasi Pengiriman Data</h3>
-                    
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">Protokol</span>
-                        <span class="pengaturan-nilai">MQTT</span>
+                    <h3><i class="fas fa-exclamation-triangle" style="color:var(--unand-gold);"></i> Konfigurasi Ambang Batas (Threshold)</h3>
+                    <div class="table-container">
+                        <table class="threshold-table">
+                            <thead>
+                                <tr>
+                                    <th>Kanal</th>
+                                    <th>Min (mV)</th>
+                                    <th>Max (mV)</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="thresholdBody"></tbody>
+                        </table>
                     </div>
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">Interval pengiriman</span>
-                        <span class="pengaturan-nilai">2 detik</span>
-                    </div>
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">Broker</span>
-                        <span class="pengaturan-nilai">EMQX</span>
-                    </div>
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">Topic data</span>
-                        <span class="pengaturan-nilai" style="font-family: monospace; background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">mfc/data</span>
-                    </div>
-
-                    <button class="btn-simpan-lebar">Simpan konfigurasi</button>
+                    <button class="btn-primary" id="addThreshold" style="margin-top:12px;"><i class="fas fa-plus"></i> Tambah Konfigurasi</button>
                 </div>
 
-                <!-- C. Status Perangkat -->
+                <!-- Device Info -->
                 <div class="settings-card">
-                    <h3><i class="fas fa-microchip" style="color:var(--unand-green);"></i> C. Status Perangkat</h3>
-                    
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">ESP32</span>
-                        <span class="badge-status online" id="statusESP32">Online</span>
+                    <h3><i class="fas fa-server" style="color:var(--unand-green);"></i> Informasi Perangkat</h3>
+                    <div class="device-info-grid">
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-tag"></i> Nama Perangkat</span>
+                            <span class="info-value">MFC-DAQ-001</span>
+                        </div>
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-code"></i> Firmware Version</span>
+                            <span class="info-value">v2.1.0</span>
+                        </div>
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-wifi"></i> Status Koneksi</span>
+                            <span class="info-value status-online"><i class="fas fa-circle" style="font-size:10px;"></i> Terhubung</span>
+                        </div>
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-clock"></i> Uptime</span>
+                            <span class="info-value">72 jam 14 menit</span>
+                        </div>
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-upload"></i> Terakhir Kirim Data</span>
+                            <span class="info-value">14:32 WIB</span>
+                        </div>
+                        <div class="device-info-item">
+                            <span class="info-label"><i class="fas fa-database"></i> Total Data Tersimpan</span>
+                            <span class="info-value">1,248</span>
+                        </div>
                     </div>
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">Wifi</span>
-                        <span class="badge-status online">Connected</span>
-                    </div>
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">MQTT</span>
-                        <span class="badge-status online" id="statusMQTT">Connected</span>
-                    </div>
-                    <div class="pengaturan-baris">
-                        <span class="pengaturan-label">microSD</span>
-                        <span class="badge-status online">Ready</span>
-                    </div>
-
-                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 16px; line-height: 1.4;">
-                        Status dan nilai merupakan ilustrasi, bukan status perangkat aktual. Tombol belum terhubung ke backend.
-                    </p>
                 </div>
 
-            </div>
-        </section>
+                <!-- Danger Zone -->
+                <div class="settings-card danger">
+                    <h3><i class="fas fa-skull" style="color:var(--unand-red);"></i> Zona Berbahaya</h3>
+                    <div class="danger-actions">
+                        <button class="btn-danger" onclick="resetAllData()"><i class="fas fa-trash"></i> Reset Semua Data</button>
+                        <button class="btn-danger" onclick="factoryReset()"><i class="fas fa-undo-alt"></i> Factory Reset</button>
+                    </div>
+                </div>
 
         </section>
 
@@ -1503,10 +1496,6 @@
             message: 'Peringatan: Koneksi ke ESP32 terputus.' 
         });
         renderLogs();
-        // --- TAMBAHKAN DUA BARIS INI ---
-                document.getElementById('statusESP32').className = 'badge-status offline';
-                document.getElementById('statusESP32').textContent = 'Offline';
-                // -------------------------------
         isDeviceOffline = true; 
     }
 }, 1000);
@@ -1573,10 +1562,6 @@
                 
                 // Cek dan kirim data offline jika ada
                 syncOfflineData();
-                 // --- TAMBAHKAN DUA BARIS INI ---
-                document.getElementById('statusMQTT').className = 'badge-status online';
-                document.getElementById('statusMQTT').textContent = 'Connected';
-                // -------------------------------
             });
 
             mqttClient.on('message', (topic, payload) => {
@@ -1612,10 +1597,6 @@
                                 document.querySelector('.status-text').textContent = 'Device Online';
                                 document.querySelector('.status-dot').className = 'status-dot online';
                                 showToast('success', '📡 ESP32 Terhubung Kembali!');
-                                // --- TAMBAHKAN DUA BARIS INI ---
-                                document.getElementById('statusESP32').className = 'badge-status online';
-                                document.getElementById('statusESP32').textContent = 'Online';
-                                // -------------------------------
                             }
                             // -----------------------------------
 
@@ -1636,10 +1617,6 @@
                 mqttConnected = false;
                 document.querySelector('.status-text').textContent = 'MQTT Offline';
                 document.querySelector('.status-dot').className = 'status-dot offline';
-                // --- TAMBAHKAN DUA BARIS INI ---
-                document.getElementById('statusMQTT').className = 'badge-status offline';
-                document.getElementById('statusMQTT').textContent = 'Disconnected';
-                // -------------------------------
             });
         }
 
